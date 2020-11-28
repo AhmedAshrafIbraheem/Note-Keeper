@@ -15,6 +15,6 @@ CREATE TABLE IF NOT EXISTS Notes (
     user_id int NOT NULL,
     note varchar(2048) NOT NULL,
     PRIMARY KEY (id),
-    FOREIGN KEY (user_id) REFERENCES Users(id)
+    FOREIGN KEY (user_id) REFERENCES Users(User_id)
 );
 

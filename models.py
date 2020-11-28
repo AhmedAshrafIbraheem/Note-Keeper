@@ -1,7 +1,34 @@
+import os
+import sys
+
 from flask_login import UserMixin
-from flask_mysqldb import MySQL
+import pymysql
 from passlib.hash import sha256_crypt
 
+db_user = os.environ.get('CLOUD_SQL_USERNAME')
+db_password = os.environ.get('CLOUD_SQL_PASSWORD')
+db_name = os.environ.get('CLOUD_SQL_DATABASE_NAME')
+db_connection_name = os.environ.get('CLOUD_SQL_CONNECTION_NAME')
+read_db_connection_name = os.environ.get('CLOUD_SQL_READ_DB')
+
+if os.environ.get('GAE_ENV') == 'standard':
+        # If deployed, use the local socket interface for accessing Cloud SQL
+        unix_socket = '/cloudsql/{}'.format(db_connection_name)
+        read_unix_socket = '/cloudsql/{}'.format('notekeeperapp-296101:us-east4:notekeepersql-replica')
+        cnx = pymysql.connect(user=db_user, password=db_password,
+                              unix_socket=unix_socket, db=db_name)
+        rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=read_unix_socket, db=db_name)
+
+else:
+    # If running locally, use the TCP connections instead
+    # Set up Cloud SQL Proxy (cloud.google.com/sql/docs/mysql/sql-proxy)
+    # so that your application can use 127.0.0.1:3306 to connect to your
+    # Cloud SQL instance
+    dbhost = '127.0.0.1'
+    rdhost = '127.0.0.1:1234'
+    cnx = pymysql.connect(user='master_user', password='noteappmaster',
+                            host=dbhost, db='note_database')
+    #rdcnx = pymysql.connect(user='master_user', password='noteappmaster', host=rdhost, db='note_database')
 
 class User(UserMixin):
     def __init__(self, user_id: int, email: str, password: str):
@@ -17,22 +44,32 @@ class Note:
         self.note = note
 
 
-def add_user(email: str, password: str, mysql: MySQL) -> bool:
+def add_user(email: str, password: str) -> bool:
     hashed_password = sha256_crypt.encrypt(password)
     try:
-        cur = mysql.connection.cursor()
+        cur = cnx.cursor()
+        #cur = mysql.connect.cursor()
         cur.execute("INSERT INTO Users (email, password) VALUES ('{}', '{}');".format(email, hashed_password))
-        mysql.connection.commit()
+        #mysql.connection.commit()
+        cnx.commit()
         cur.close()
         return True
-    except:
-        return False
+    except pymysql.OperationalError as e:
+        # if e[0] == 2002:
+        #     print("Could not connect to database")
+     #   return False
+        pass
+    except pymysql.IntegrityError as Ie:
+        print("Duplicate entry " + str(sys.exc_info()[1]))
+        pass
+    return False
+    
 
 
-def user_exist(email: str, password: str, mysql: MySQL):
+def user_exist(email: str, password: str):
     # Return user if exits and None otherwise
     try:
-        cur = mysql.connection.cursor()
+        cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Users WHERE email='{}' LIMIT 1;".format(email))
         ret = cur.fetchone()
         cur.close()
@@ -42,9 +79,9 @@ def user_exist(email: str, password: str, mysql: MySQL):
         return None
 
 
-def get_user(user_id: int, mysql: MySQL) -> User:
+def get_user(user_id: int) -> User:
     try:
-        cur = mysql.connection.cursor()
+        cur = cnx.cursor()
         cur.execute("SELECT * FROM Users WHERE id={} LIMIT 1;".format(user_id))
         ret = cur.fetchone()
         cur.close()
@@ -53,19 +90,19 @@ def get_user(user_id: int, mysql: MySQL) -> User:
         pass
 
 
-def create_note(user_id: int, note: str, mysql: MySQL):
+def create_note(user_id: int, note: str):
     try:
-        cur = mysql.connection.cursor()
+        cur = cnx.cursor()
         cur.execute("INSERT INTO Notes (user_id, note) VALUES ({}, '{}');".format(user_id, note))
-        mysql.connection.commit()
+        cnx.commit()
         cur.close()
     except:
         pass
 
 
-def get_note(user_id: int, note_id: int, mysql: MySQL):
+def get_note(user_id: int, note_id: int):
     try:
-        cur = mysql.connection.cursor()
+        cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
         ret = cur.fetchone()
         cur.close()
@@ -76,33 +113,37 @@ def get_note(user_id: int, note_id: int, mysql: MySQL):
     return None
 
 
-def update_note(user_id: int, note_id: int, edited_note: str, mysql: MySQL):
+def update_note(user_id: int, note_id: int, edited_note: str):
     try:
-        cur = mysql.connection.cursor()
+        cur = cnx.cursor()
         cur.execute("UPDATE Notes SET note='{}' WHERE id={} AND user_id= {} LIMIT 1;".format(edited_note, note_id, user_id))
-        mysql.connection.commit()
+        cnx.commit()
         cur.close()
     except:
         pass
 
 
-def remove_note(user_id: int, note_id: int, mysql: MySQL):
+def remove_note(user_id: int, note_id: int):
     try:
-        cur = mysql.connection.cursor()
+        cur = cnx.cursor()
         cur.execute("DELETE FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
-        mysql.connection.commit()
+        cnx.commit()
         cur.close()
     except:
         pass
 
 
-def read_latest_100_notes(user_id: int, mysql: MySQL) -> [Note]:
+def read_latest_100_notes(user_id: int) -> [Note]:
     try:
-        cur = mysql.connection.cursor()
+        cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Notes WHERE user_id= {} LIMIT 100;".format(user_id))
         ret = cur.fetchall()
+
+        for note in ret:
+            print(note)
         cur.close()
         return [Note(note[0], note[1], note[2]) for note in ret]
-    except:
-        return []
+    except Exception as e:
+        print("Read error" + str(e))
+    return []
 

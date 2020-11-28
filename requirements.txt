@@ -8,3 +8,4 @@ gevent
 mysqlclient
 flask-mysqldb
 passlib
+pymysql
