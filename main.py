@@ -136,6 +136,6 @@ def delete_note(note_id: int):
 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1', port=8080, debug=True)
-    http_server = WSGIServer(('', 8080), app)
-    http_server.serve_forever()
+    app.run(host='127.0.0.1', port=8080, debug=True)
+    #http_server = WSGIServer(('', 8080), app)
+    #http_server.serve_forever()

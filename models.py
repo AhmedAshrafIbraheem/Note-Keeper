@@ -28,7 +28,8 @@ else:
     rdhost = '127.0.0.1:1234'
     cnx = pymysql.connect(user='master_user', password='noteappmaster',
                             host=dbhost, db='note_database')
-    #rdcnx = pymysql.connect(user='master_user', password='noteappmaster', host=rdhost, db='note_database')
+    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster',
+                            host=dbhost, port=1234, db='note_database')
 
 class User(UserMixin):
     def __init__(self, user_id: int, email: str, password: str):
@@ -72,6 +73,7 @@ def user_exist(email: str, password: str):
         cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Users WHERE email='{}' LIMIT 1;".format(email))
         ret = cur.fetchone()
+        rd_cnx.commit()
         cur.close()
         if sha256_crypt.verify(password, ret[2]):
             return User(ret[0], ret[1], ret[2])
@@ -81,9 +83,10 @@ def user_exist(email: str, password: str):
 
 def get_user(user_id: int) -> User:
     try:
-        cur = cnx.cursor()
+        cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Users WHERE id={} LIMIT 1;".format(user_id))
         ret = cur.fetchone()
+        rd_cnx.commit()
         cur.close()
         return User(ret[0], ret[1], ret[2])
     except:
@@ -104,6 +107,7 @@ def get_note(user_id: int, note_id: int):
     try:
         cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
+        rd_cnx.commit()
         ret = cur.fetchone()
         cur.close()
         if ret:
@@ -138,10 +142,11 @@ def read_latest_100_notes(user_id: int) -> [Note]:
         cur = rd_cnx.cursor()
         cur.execute("SELECT * FROM Notes WHERE user_id= {} LIMIT 100;".format(user_id))
         ret = cur.fetchall()
-
+        rd_cnx.commit()
+        cur.close()
         for note in ret:
             print(note)
-        cur.close()
+
         return [Note(note[0], note[1], note[2]) for note in ret]
     except Exception as e:
         print("Read error" + str(e))
