@@ -32,10 +32,10 @@ else:
                             host=dbhost, port=1234, db='note_database')
 
 class User(UserMixin):
-    def __init__(self, user_id: int, email: str, password: str):
+    def __init__(self, user_id: int, email: str):
         self.id = user_id
         self.email = email
-        self.password = password
+        #self.password = password
 
 
 class Note:
@@ -76,7 +76,7 @@ def user_exist(email: str, password: str):
         rd_cnx.commit()
         cur.close()
         if sha256_crypt.verify(password, ret[2]):
-            return User(ret[0], ret[1], ret[2])
+            return User(ret[0], ret[1])
     except:
         return None
 
@@ -88,7 +88,7 @@ def get_user(user_id: int) -> User:
         ret = cur.fetchone()
         rd_cnx.commit()
         cur.close()
-        return User(ret[0], ret[1], ret[2])
+        return User(ret[0], ret[1])
     except:
         pass
 
@@ -144,8 +144,6 @@ def read_latest_100_notes(user_id: int) -> [Note]:
         ret = cur.fetchall()
         rd_cnx.commit()
         cur.close()
-        for note in ret:
-            print(note)
 
         return [Note(note[0], note[1], note[2]) for note in ret]
     except Exception as e:

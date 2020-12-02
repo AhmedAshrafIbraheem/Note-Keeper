@@ -20,10 +20,10 @@
           </div>
           <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
               <ul class="nav navbar-nav navbar-right">
-                  {% if current_user.is_authenticated %}
+                  {% if 'user_id' in session %}
                     <li><a href="{{ url_for('notes') }}">Notes</a></li>
                     <li><a href="{{ url_for('logout') }}">Logout</a></li>
-                    <li><a><i class="fa fa-user"></i>  Hi, {{ current_user.email }}!</a></li>
+                    <li><a><i class="fa fa-user"></i>  Hi, {{ g.user.email }}!</a></li>
                   {% else %}
                     <li><a href="{{ url_for('login') }}">Login</a></li>
                     <li><a href="{{ url_for('register') }}">Register</a></li>

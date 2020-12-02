@@ -17,8 +17,9 @@
 __pycache__/
 # Ignored by the build system
 /setup.cfg
-static
 venv
 .idea
 .sql
 cloud_sql_proxy_x64.exe
+locust-test
+locust_test.py

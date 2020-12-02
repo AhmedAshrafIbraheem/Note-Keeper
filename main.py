@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, flash
+from flask import Flask, render_template, redirect, url_for, flash, session, request, g
 from flask_login import current_user, login_required, logout_user, login_user, LoginManager
 from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, get_user
 from forms import LoginForm, RegisterForm, NoteForm
@@ -51,16 +51,29 @@ def index():
     return render_template('index.html', title="Welcome")
 
 
+#Get user email information for use in html
+@app.before_request
+def before_request():
+    if 'user_id' in session:
+        g.user = get_user(session['user_id'])
+
+
+#register user
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     form = RegisterForm()
-    if form.validate_on_submit():
+
+    if request.method == 'POST':
         email = form.email.data
         password = form.password.data
+
         success = add_user(email, password)
+
         if success:
             flash('Thanks for registering')
-            return redirect(url_for('login'))
+            session['user_id'] = user_exist(email, password).id
+            return redirect(url_for('notes'))
+
         else:
             flash('User already exist')
 
@@ -70,66 +83,87 @@ def register():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     form = LoginForm()
-    if form.validate_on_submit():
+
+    if request.method == 'POST':
         email = form.email.data
         password = form.password.data
         user = user_exist(email, password)
-        #print(user.email)
+
+
         if user:
-            print("this runs")
-            print(login_user(user))
+            session['user_id'] = user.id
+
+            print(session['user_id'])
+            print("Login successful")
             return redirect(url_for("notes"))
         else:
+
             flash("Invalid email or password.")
+    for formName, errorCode in form.errors.items():
+         print(str(formName) + ": " + str(errorCode))
 
     return render_template("login.html", form=form, title="Login")
 
 
 @app.route("/logout")
-@login_required
+
 def logout():
-    logout_user()
+    session.pop('user_id', None)
+
     flash("You have successfully been logged out.")
     return redirect(url_for("login"))
 
 
 @app.route('/notes', methods=['GET'])
-@login_required
-def notes():
-    user_id = current_user.id
-    user_notes = read_latest_100_notes(user_id)
-    return render_template('notes.html', notes=user_notes, title="Notes")
 
+def notes():
+    if 'user_id' in session:
+        user_id = session['user_id']
+
+        user_notes = read_latest_100_notes(user_id)
+        return render_template('notes.html', notes=user_notes, title="Notes")
+    else:
+        return redirect(url_for("login"))
 
 @app.route('/notes/add', methods=['GET', 'POST'])
-@login_required
+
 def add_note():
-    form = NoteForm()
-    if form.validate_on_submit():
-        user_id = current_user.id
-        create_note(user_id, form.note.data)
-        flash("You have successfully added a new note.")
-        return redirect(url_for("notes"))
-    return render_template("updateNote.html", add_note=True, form=form, title="Add Note")
+    if 'user_id' in session:
+        form = NoteForm()
+        if request.method == 'POST':
+            user_id = session['user_id']
+
+            create_note(user_id, form.note.data)
+            flash("You have successfully added a new note.")
+            print("note created")
+            return redirect(url_for("notes"))
+        for formName, errorCode in form.errors.items():
+            print(str(formName) + ": " + str(errorCode))
+        return render_template("updateNote.html", add_note=True, form=form, title="Add Note")
+    return redirect(url_for("login"))
 
 
 @app.route('/notes/edit/<int:note_id>', methods=['GET', 'POST'])
-@login_required
+
 def edit_note(note_id: int):
-    user_id = current_user.id
-    cur_note = get_note(user_id, note_id)
-    form = NoteForm(obj=cur_note)
-    if form.validate_on_submit():
-        update_note(user_id, note_id, form.note.data)
-        flash("You have successfully updated your note.")
-        return redirect(url_for("notes"))
-    return render_template("updateNote.html", add_note=False, form=form, title="Edit Note")
+    if 'user_id' in session:
+        user_id = session['user_id']
+
+        cur_note = get_note(user_id, note_id)
+        form = NoteForm(obj=cur_note)
+        if request.method == 'POST':
+            update_note(user_id, note_id, form.note.data)
+            flash("You have successfully updated your note.")
+            return redirect(url_for("notes"))
+        return render_template("updateNote.html", add_note=False, form=form, title="Edit Note")
+    return render_template("login")
 
 
 @app.route('/notes/delete/<int:note_id>', methods=['GET'])
-@login_required
+
 def delete_note(note_id: int):
-    user_id = current_user.id
+    user_id = session['user_id']
+
     remove_note(user_id, note_id)
     flash("You have successfully deleted the note.")
     return redirect(url_for("notes"))
