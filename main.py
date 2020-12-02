@@ -1,4 +1,6 @@
 from flask import Flask, render_template, redirect, url_for, flash, session, request, g
+from gevent.pywsgi import WSGIServer
+
 from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, get_user
 from forms import LoginForm, RegisterForm, NoteForm
 from flask_bootstrap import Bootstrap
