@@ -1,33 +1,17 @@
 from flask import Flask, render_template, redirect, url_for, flash, session, request, g
-from flask_login import current_user, login_required, logout_user, login_user, LoginManager
 from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, get_user
 from forms import LoginForm, RegisterForm, NoteForm
 from flask_bootstrap import Bootstrap
-# import pymysql
-from gevent.pywsgi import WSGIServer
-import os
+
 
 
 app = Flask(__name__)
-# #mysql = MySQL(app)
 bootstrap = Bootstrap(app)
-login_manager = LoginManager()
-login_manager.init_app(app)
-login_manager.login_message = "You must be logged in to access this page."
-login_manager.login_view = "login"
+
 
 SECRET_KEY = b'\xe2\xaf\xbc:\xdd'
 app.config['SECRET_KEY'] = SECRET_KEY
-# app.config['MYSQL_HOST'] = '127.0.0.1'
-# app.config['MYSQL_HOST'] = '127.0.0.1'
-# app.config['MYSQL_USER'] = os.environ.get('CLOUD_SQL_USERNAME')
-# app.config['MYSQL_PASSWORD'] = os.environ.get('CLOUD_SQL_PASSWORD')
-# app.config['MYSQL_DB'] = os.environ.get('CLOUD_SQL_DATABASE_NAME')
 
-
-@login_manager.user_loader
-def load_user(user_id: int):
-    return get_user(int(user_id))
 
 
 @app.errorhandler(403)
@@ -44,6 +28,10 @@ def page_not_found(error):
 def internal_server_error(error):
     return render_template("errors/500.html", title="Server Error"), 500
 
+
+@app.route('/favicon.ico')
+def favicon():
+    return "Note_Keepers"
 
 
 @app.route('/', methods=['GET'])
@@ -66,6 +54,7 @@ def register():
     if request.method == 'POST':
         email = form.email.data
         password = form.password.data
+
 
         success = add_user(email, password)
 
@@ -170,6 +159,6 @@ def delete_note(note_id: int):
 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1', port=8080, debug=True)
-    #http_server = WSGIServer(('', 8080), app)
-    #http_server.serve_forever()
+    #app.run(host='127.0.0.1', port=8080, debug=True)
+    http_server = WSGIServer(('', 8080), app)
+    http_server.serve_forever()

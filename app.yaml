@@ -7,5 +7,5 @@ env_variables:
   CLOUD_SQL_DATABASE_NAME: note_database
   CLOUD_SQL_CONNECTION_NAME: notekeeperapp-296101:us-east4:notekeepersql
   CLOUD_SQL_READ_DB: notekeeperapp-296101:us-east4:notekeepersql-replica
-  SECRET_KEY: b'\xe2\xaf\xbc:\xdd'
+
 # [END gae_python37_cloudsql_config]
