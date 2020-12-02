@@ -45,6 +45,10 @@ def internal_server_error(error):
     return render_template("errors/500.html", title="Server Error"), 500
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return "Note_Keepers"
+
 
 @app.route('/', methods=['GET'])
 def index():
