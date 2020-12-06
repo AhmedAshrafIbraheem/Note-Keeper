@@ -3,3 +3,4 @@ Flask-Bootstrap
 gevent
 passlib
 pymysql
+Flask-WTF
