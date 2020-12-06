@@ -29,7 +29,7 @@
 import time
 from locust import HttpUser, task
 
-note_data = dict(note="This from real locust test 2")
+note_data = dict(note="Wales combined test")
 login_data = dict(email='acoolmind13@gmail.com', password='12345678')
 register_data = dict(email = "", password='12345678')
 
@@ -47,9 +47,9 @@ class QuickTasks(HttpUser):
 
     def on_start(self):
         global  user_counter
-        register_data['email'] = "User{}@gmail.com".format(user_counter)
+        login_data['email'] = "User{}@gmail.com".format(user_counter)
         user_counter +=1
-        self.client.post("/register", data=register_data)
+        self.client.post("/login", data=login_data)
 
     def on_stop(self):
         self.client.get("/logout")
