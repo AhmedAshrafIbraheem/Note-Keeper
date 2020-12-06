@@ -11,14 +11,15 @@
     <h1>Login to your account</h1>
     <br/>
 
-    <form action="/login" method="POST">
-      <label class="h5 control-label">Email</label> <br>
-      <input class="form-control" name="email" type="email" value="" minlength="8" maxlength="50" required> <br>
-      <label class="h5 control-label">Password</label> <br>
-      <input class="form-control" name="password" type="password" value="" minlength="8" maxlength="50" required> <br>
-      <br>
-      <input class="btn btn-default" type="submit" value="Submit">
-    </form>
+    {{ wtf.quick_form(form) }}
+<!--    <form action="/login" method="POST">-->
+<!--      <label class="h5 control-label">Email</label> <br>-->
+<!--      <input class="form-control" name="email" type="email" value="" minlength="8" maxlength="50" required> <br>-->
+<!--      <label class="h5 control-label">Password</label> <br>-->
+<!--      <input class="form-control" name="password" type="password" value="" minlength="8" maxlength="50" required> <br>-->
+<!--      <br>-->
+<!--      <input class="btn btn-default" type="submit" value="Submit">-->
+<!--    </form>-->
 
 
   </div>

@@ -29,8 +29,8 @@
 import time
 from locust import HttpUser, task
 
-note_data = dict(note="Wales combined test")
-login_data = dict(email='acoolmind13@gmail.com', password='12345678')
+note_data = dict(note="register form implement")
+login_data = dict(email='locust12345@gmail.com', password='12345678')
 register_data = dict(email = "", password='12345678')
 
 user_counter = 1
@@ -42,6 +42,7 @@ class QuickTasks(HttpUser):
     @task
     def add_note(self):
         self.client.post("/notes/add", data=note_data)
+
         time.sleep(1)
 
 

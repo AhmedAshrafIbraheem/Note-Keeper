@@ -15,23 +15,30 @@
         <div class="center">
             {% if add_note %}
                 <h1>Add New Note</h1>
-                <br>
-                <form action="/notes/add" method="POST">
-                  <label class="h5 control-label">Note</label> <br>
-                  <textarea class="form-control" name="note" minlength="4" maxlength="2048" required></textarea>
-                  <br><br>
-                  <input class="btn btn-default btn-lg" type="submit" value="Submit">
-                </form>
             {% else %}
                 <h1>Edit Note</h1>
-                <br/>
-                <form action="/notes/edit/{{note_id}}" method="POST">
-                  <label class="h5 control-label">Note</label> <br>
-                  <textarea class="form-control" name="note" minlength="4" maxlength="2048" required>{{note}}</textarea>
-                  <br><br>
-                  <input class="btn btn-default btn-lg" type="submit" value="Submit">
-                </form>
             {% endif %}
+            <br/>
+            {{ wtf.quick_form(form) }}
+<!--            {% if add_note %}-->
+<!--                <h1>Add New Note</h1>-->
+<!--                <br>-->
+<!--                <form action="/notes/add" method="POST">-->
+<!--                  <label class="h5 control-label">Note</label> <br>-->
+<!--                  <textarea class="form-control" name="note" minlength="4" maxlength="2048" required></textarea>-->
+<!--                  <br><br>-->
+<!--                  <input class="btn btn-default btn-lg" type="submit" value="Submit">-->
+<!--                </form>-->
+<!--            {% else %}-->
+<!--                <h1>Edit Note</h1>-->
+<!--                <br/>-->
+<!--                <form action="/notes/edit/{{note_id}}" method="POST">-->
+<!--                  <label class="h5 control-label">Note</label> <br>-->
+<!--                  <textarea class="form-control" name="note" minlength="4" maxlength="2048" required>{{note}}</textarea>-->
+<!--                  <br><br>-->
+<!--                  <input class="btn btn-default btn-lg" type="submit" value="Submit">-->
+<!--                </form>-->
+<!--            {% endif %}-->
         </div>
       </div>
     </div>

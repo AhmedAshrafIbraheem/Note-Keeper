@@ -2,7 +2,7 @@ from flask import Flask, render_template, redirect, url_for, flash, session, req
 from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, get_user
 from flask_bootstrap import Bootstrap
 from gevent.pywsgi import WSGIServer
-
+from forms import LoginForm, RegisterForm, NoteForm
 
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
@@ -10,7 +10,7 @@ bootstrap = Bootstrap(app)
 
 SECRET_KEY = b'\xe2\xaf\xbc:\xdd'
 app.config['SECRET_KEY'] = SECRET_KEY
-
+app.config['WTF_CSRF_ENABLED'] = False
 
 @app.errorhandler(403)
 def forbidden(error):
@@ -46,25 +46,27 @@ def before_request():
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+    form = RegisterForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
         success = add_user(email, password)
-
+        print("register done")
         if success:
             flash('Thanks for registering')
             return redirect(url_for('login'))
         else:
             flash('User already exist')
 
-    return render_template('register.html', title="Register")
+    return render_template('register.html', title="Register", form = form)
 
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
+    form = LoginForm()
+    if form.validate_on_submit():
+        email = form.email.data
+        password = form.password.data
         user = user_exist(email, password)
 
         if user:
@@ -73,7 +75,7 @@ def login():
         else:
             flash("Invalid email or password.")
 
-    return render_template("login.html", title="Login")
+    return render_template("login.html", title="Login", form=form)
 
 
 @app.route("/logout")
@@ -96,13 +98,15 @@ def notes():
 @app.route('/notes/add', methods=['GET', 'POST'])
 def add_note():
     if 'user_id' in session:
-        if request.method == 'POST':
+        form = NoteForm()
+        if form.validate_on_submit():
             user_id = session['user_id']
-            create_note(user_id, request.form.get('note'))
+            note = form.note.data
+            create_note(user_id, note)
             flash("You have successfully added a new note.")
             return redirect(url_for("notes"))
 
-        return render_template("updateNote.html", add_note=True, title="Add Note")
+        return render_template("updateNote.html", add_note=True, title="Add Note", form=form)
 
     return redirect(url_for("login"))
 
@@ -112,12 +116,14 @@ def edit_note(note_id: int):
     if 'user_id' in session:
         user_id = session['user_id']
         cur_note = get_note(user_id, note_id)
-        if request.method == 'POST':
-            update_note(user_id, note_id, request.form.get('note'))
+        form = NoteForm(obj=cur_note)
+        if form.validate_on_submit():
+            updated_note = form.note.data
+            update_note(user_id, note_id, updated_note)
             flash("You have successfully updated your note.")
             return redirect(url_for("notes"))
 
-        return render_template("updateNote.html", add_note=False, note_id=cur_note.id, note=cur_note.note, title="Edit Note")
+        return render_template("updateNote.html", add_note=False, title="Edit Note", form=form)
 
     return redirect(url_for("login"))
 
@@ -134,6 +140,6 @@ def delete_note(note_id: int):
 
 
 if __name__ == '__main__':
-    # app.run(host='127.0.0.1', port=8080, debug=True)
-    http_server = WSGIServer(('', 8080), app)
-    http_server.serve_forever()
+    app.run(host='127.0.0.1', port=8080, debug=True)
+    # http_server = WSGIServer(('', 8080), app)
+    # http_server.serve_forever()
