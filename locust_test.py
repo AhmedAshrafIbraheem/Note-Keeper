@@ -33,23 +33,24 @@ note_data = dict(note="register form implement")
 login_data = dict(email='locust12345@gmail.com', password='12345678')
 register_data = dict(email = "", password='12345678')
 
-user_counter = 1
+user_counter = 50
 
 
 class QuickTasks(HttpUser):
-
+    # @task
+    # def add_note(self):
+    #     self.client.post("/notes/add", data=note_data)
+    #     time.sleep(1)
 
     @task
-    def add_note(self):
-        self.client.post("/notes/add", data=note_data)
-
+    def get_notes(self):
+        self.client.get("/notes")
         time.sleep(1)
 
-
     def on_start(self):
-        global  user_counter
+        global user_counter
         login_data['email'] = "User{}@gmail.com".format(user_counter)
-        user_counter +=1
+        user_counter += 1
         self.client.post("/login", data=login_data)
 
     def on_stop(self):
