@@ -1,7 +1,5 @@
 import os
 import sys
-
-from flask_login import UserMixin
 import pymysql
 from passlib.hash import sha256_crypt
 
@@ -12,12 +10,11 @@ db_connection_name = os.environ.get('CLOUD_SQL_CONNECTION_NAME')
 read_db_connection_name = os.environ.get('CLOUD_SQL_READ_DB')
 
 if os.environ.get('GAE_ENV') == 'standard':
-        # If deployed, use the local socket interface for accessing Cloud SQL
-        unix_socket = '/cloudsql/{}'.format(db_connection_name)
-        read_unix_socket = '/cloudsql/{}'.format('notekeeperapp-296101:us-east4:notekeepersql-replica')
-        cnx = pymysql.connect(user=db_user, password=db_password,
-                              unix_socket=unix_socket, db=db_name)
-        rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=read_unix_socket, db=db_name)
+    # If deployed, use the local socket interface for accessing Cloud SQL
+    unix_socket = '/cloudsql/{}'.format(db_connection_name)
+    read_unix_socket = '/cloudsql/{}'.format('notekeeperapp-296101:us-east4:notekeepersql-replica')
+    cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=unix_socket, db=db_name)
+    rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=read_unix_socket, db=db_name)
 
 else:
     # If running locally, use the TCP connections instead
@@ -26,16 +23,14 @@ else:
     # Cloud SQL instance
     dbhost = '127.0.0.1'
     rdhost = '127.0.0.1:1234'
-    cnx = pymysql.connect(user='master_user', password='noteappmaster',
-                            host=dbhost, db='note_database')
-    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster',
-                            host=dbhost, port=1234, db='note_database')
+    cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
+    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=1234, db='note_database')
 
-class User(UserMixin):
+
+class User:
     def __init__(self, user_id: int, email: str):
         self.id = user_id
         self.email = email
-        #self.password = password
 
 
 class Note:
@@ -49,22 +44,19 @@ def add_user(email: str, password: str) -> bool:
     hashed_password = sha256_crypt.encrypt(password)
     try:
         cur = cnx.cursor()
-        #cur = mysql.connect.cursor()
         cur.execute("INSERT INTO Users (email, password) VALUES ('{}', '{}');".format(email, hashed_password))
-        #mysql.connection.commit()
         cnx.commit()
         cur.close()
         return True
     except pymysql.OperationalError as e:
         # if e[0] == 2002:
         #     print("Could not connect to database")
-     #   return False
+        #   return False
         pass
     except pymysql.IntegrityError as Ie:
         print("Duplicate entry " + str(sys.exc_info()[1]))
         pass
     return False
-    
 
 
 def user_exist(email: str, password: str):
@@ -84,11 +76,11 @@ def user_exist(email: str, password: str):
 def get_user(user_id: int) -> User:
     try:
         cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Users WHERE id={} LIMIT 1;".format(user_id))
+        cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
         ret = cur.fetchone()
         rd_cnx.commit()
         cur.close()
-        return User(ret[0], ret[1])
+        return User(user_id, ret[0])
     except:
         pass
 
@@ -120,7 +112,8 @@ def get_note(user_id: int, note_id: int):
 def update_note(user_id: int, note_id: int, edited_note: str):
     try:
         cur = cnx.cursor()
-        cur.execute("UPDATE Notes SET note='{}' WHERE id={} AND user_id= {} LIMIT 1;".format(edited_note, note_id, user_id))
+        cur.execute(
+            "UPDATE Notes SET note='{}' WHERE id={} AND user_id= {} LIMIT 1;".format(edited_note, note_id, user_id))
         cnx.commit()
         cur.close()
     except:
@@ -149,4 +142,3 @@ def read_latest_100_notes(user_id: int) -> [Note]:
     except Exception as e:
         print("Read error" + str(e))
     return []
-

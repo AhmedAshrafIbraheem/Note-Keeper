@@ -10,7 +10,19 @@
   <div class="center">
     <h1>Register</h1>
     <br/>
-    {{ wtf.quick_form(form) }}
+
+    <form action="/register" method="POST"
+          oninput='confirm.setCustomValidity(confirm.value != password.value ? "Passwords do not match." : "")'>
+      <label class="h5 control-label">Email</label> <br>
+      <input class="form-control" name="email" type="email" value="" minlength="8" maxlength="50" required> <br>
+      <label class="h5 control-label">Password</label> <br>
+      <input class="form-control" name="password" type="password" value="" minlength="8" maxlength="50" required> <br>
+      <label class="h5 control-label">Confirm Password</label> <br>
+      <input class="form-control" name="confirm" type="password" value="" minlength="8" maxlength="50" required> <br>
+      <br>
+      <input class="btn btn-default" type="submit" value="Submit">
+    </form>
+
   </div>
 </div>
 {% endblock %}
