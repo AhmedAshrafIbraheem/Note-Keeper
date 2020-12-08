@@ -23,3 +23,4 @@ venv
 cloud_sql_proxy_x64.exe
 locust-test
 locust_test.py
+notes-images.jpg
