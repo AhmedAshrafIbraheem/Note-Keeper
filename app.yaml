@@ -7,5 +7,7 @@ env_variables:
   CLOUD_SQL_DATABASE_NAME: note_database
   CLOUD_SQL_CONNECTION_NAME: notekeeperapp-296101:us-east4:notekeepersql
   CLOUD_SQL_READ_DB: notekeeperapp-296101:us-east4:notekeepersql-replica
+  CLOUD_SQL_READ_DB_2: notekeeperapp-296101:us-east4:notekeepersql-replica-2
+  CLOUD_SQL_READ_DB_CROSS: notekeeperapp-296101:us-east1:notekeepersql-replica-3
 
 # [END gae_python37_cloudsql_config]

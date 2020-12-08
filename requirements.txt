@@ -5,3 +5,5 @@ passlib
 pymysql
 Flask-WTF
 WTForms
+email-validator
+

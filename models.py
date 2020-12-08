@@ -2,20 +2,37 @@ import os
 import sys
 import datetime as dt
 import pymysql
+from random import choice
 from passlib.hash import sha256_crypt
 
 db_user = os.environ.get('CLOUD_SQL_USERNAME')
 db_password = os.environ.get('CLOUD_SQL_PASSWORD')
 db_name = os.environ.get('CLOUD_SQL_DATABASE_NAME')
 db_connection_name = os.environ.get('CLOUD_SQL_CONNECTION_NAME')
-read_db_connection_name = os.environ.get('CLOUD_SQL_READ_DB')
+read_db = os.environ.get('CLOUD_SQL_READ_DB')
+read_db_2 = os.environ.get('CLOUD_SQL_READ_DB_2')
+read_db_cross = os.environ.get('CLOUD_SQL_READ_DB_CROSS')
 
 if os.environ.get('GAE_ENV') == 'standard':
     # If deployed, use the local socket interface for accessing Cloud SQL
     unix_socket = '/cloudsql/{}'.format(db_connection_name)
-    read_unix_socket = '/cloudsql/{}'.format('notekeeperapp-296101:us-east4:notekeepersql-replica')
+    read_unix_socket = '/cloudsql/{}'.format(read_db)
+    read_2_unix_socket = '/cloudsql/{}'.format(read_db_2)
+    read_cross_unix_socket = '/cloudsql/{}'.format(read_db_cross)
+
+    chosen_read = choice([read_unix_socket, read_2_unix_socket])
+
     cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=unix_socket, db=db_name)
-    rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=read_unix_socket, db=db_name)
+    rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=chosen_read, db=db_name)
+
+
+    def cross_read_connect():
+        return pymysql.connect(user=db_user, password=db_password, unix_socket=read_cross_unix_socket, db=db_name)
+
+
+
+
+
 
 else:
     # If running locally, use the TCP connections instead
@@ -23,11 +40,17 @@ else:
     # so that your application can use 127.0.0.1:3306 to connect to your
     # Cloud SQL instance
     dbhost = '127.0.0.1'
-    rdhost = '127.0.0.1:1234'
+
+    chosen_read = choice([1234, 1235])
+    print(chosen_read)
     cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
-    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=1234, db='note_database')
+    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=chosen_read, db='note_database')
+
+    def cross_read_connect():
+        return pymysql.connect(user='master_user', password='noteappmaster', port=1236, db='note_database')
     # cnx = pymysql.connect(user='note_keeper', password='', host='localhost', db='NoteKeeperDB')
     # rd_cnx = cnx
+
 
 
 class User:
@@ -63,32 +86,6 @@ def add_user(email: str, password: str) -> bool:
     return False
 
 
-def user_exist(email: str, password: str):
-    # Return user if exits and None otherwise
-    try:
-        cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Users WHERE email='{}' LIMIT 1;".format(email))
-        ret = cur.fetchone()
-        rd_cnx.commit()
-        cur.close()
-        if sha256_crypt.verify(password, ret[2]):
-            return User(ret[0], ret[1])
-    except:
-        return None
-
-
-def get_user(user_id: int) -> User:
-    try:
-        cur = rd_cnx.cursor()
-        cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
-        ret = cur.fetchone()
-        rd_cnx.commit()
-        cur.close()
-        return User(user_id, ret[0])
-    except:
-        pass
-
-
 def create_note(user_id: int, note: str):
     try:
         dt_string = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -99,20 +96,6 @@ def create_note(user_id: int, note: str):
         cur.close()
     except:
         pass
-
-
-def get_note(user_id: int, note_id: int):
-    try:
-        cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
-        rd_cnx.commit()
-        ret = cur.fetchone()
-        cur.close()
-        if ret:
-            return Note(ret[0], ret[1], ret[2], ret[3])
-    except:
-        pass
-    return None
 
 
 def update_note(user_id: int, note_id: int, edited_note: str):
@@ -136,33 +119,109 @@ def remove_note(user_id: int, note_id: int):
         pass
 
 
+def _user_exist(email: str, connection):
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM Users WHERE email='{}' LIMIT 1;".format(email))
+    connection.commit()
+    ret = cur.fetchone()
+    cur.close()
+    return ret
+
+
+
+def user_exist(email: str, password: str):
+    # Return user if exits and None otherwise
+    try:
+        ret = _user_exist(email, rd_cnx)
+        if sha256_crypt.verify(password, ret[2]):
+            return User(ret[0], ret[1])
+    except:
+        rd_cross_cnx = cross_read_connect()
+        ret = _user_exist(email, rd_cross_cnx)
+        rd_cross_cnx.close()
+        if sha256_crypt.verify(password, ret[2]):
+            return User(ret[0], ret[1])
+
+
+def _get_user(user_id: int, connection):
+    cur = connection.cursor()
+    cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
+    connection.commit()
+    ret = cur.fetchone()
+    cur.close()
+    return ret
+
+def get_user(user_id: int) -> User:
+    try:
+        ret = _get_user(user_id, rd_cnx)
+        return User(user_id, ret[0])
+    except pymysql.OperationalError:
+        rd_cross_cnx = cross_read_connect()
+        ret = _get_user(user_id, rd_cross_cnx)
+        rd_cross_cnx.close()
+        return User(user_id, ret[0])
+
+
+def _get_note(user_id: int, note_id: int, connection):
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
+    connection.commit()
+    ret = cur.fetchone()
+    cur.close()
+    return ret
+
+def get_note(user_id: int, note_id: int):
+    try:
+        ret = _get_note(user_id, note_id, rd_cnx)
+        if ret:
+            return Note(ret[0], ret[1], ret[2], ret[3])
+    except pymysql.OperationalError:
+        rd_cross_cnx = cross_read_connect()
+        ret = _get_note(user_id, note_id, rd_cross_cnx)
+        rd_cross_cnx.close()
+        if ret:
+            return Note(ret[0], ret[1], ret[2], ret[3])
+    return None
+
+def _read_latest_100_notes(user_id: int, connection):
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
+    connection.commit()
+    ret = cur.fetchall()
+    cur.close()
+    return ret
+
 def read_latest_100_notes(user_id: int) -> [Note]:
     try:
-        cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
-        ret = cur.fetchall()
-        rd_cnx.commit()
-        cur.close()
-
+        ret = _read_latest_100_notes(user_id, rd_cnx)
         return [Note(note[0], note[1], note[2], note[3]) for note in ret]
-    except Exception as e:
-        print("Read error" + str(e))
+    except pymysql.OperationalError:
+        rd_cross_cnx = cross_read_connect()
+        ret = _read_latest_100_notes(user_id, rd_cross_cnx)
+        rd_cross_cnx.close()
+        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
     return []
 
+
+def _read_100_notes(user_id: int, timestamp, connection):
+    cur = connection.cursor()
+    cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
+                "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
+    connection.commit()
+    ret = cur.fetchall()
+    cur.close()
+    return ret
 
 def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
     timestamp = dt.datetime.combine(date, time)
     try:
-        cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
-                    "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
-        ret = cur.fetchall()
-        rd_cnx.commit()
-        cur.close()
-
+        ret = _read_100_notes(user_id, timestamp, rd_cnx)
         return [Note(note[0], note[1], note[2], note[3]) for note in ret]
-    except Exception as e:
-        print("Read error" + str(e))
+    except pymysql.OperationalError:
+        rd_cross_cnx = cross_read_connect()
+        ret = _read_100_notes(user_id, timestamp, rd_cross_cnx)
+        rd_cross_cnx.close()
+        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
     return []
 
 
