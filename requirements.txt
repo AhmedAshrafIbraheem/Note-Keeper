@@ -4,3 +4,4 @@ gevent
 passlib
 pymysql
 Flask-WTF
+WTForms

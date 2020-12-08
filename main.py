@@ -1,8 +1,9 @@
 from flask import Flask, render_template, redirect, url_for, flash, session, request, g
-from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, get_user
+from models import add_user, user_exist, read_latest_100_notes, create_note, remove_note, get_note, update_note, \
+    get_user, read_100_notes
 from flask_bootstrap import Bootstrap
 from gevent.pywsgi import WSGIServer
-from forms import LoginForm, RegisterForm, NoteForm
+from forms import LoginForm, RegisterForm, NoteForm, OlderNotesForm
 
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
@@ -51,14 +52,14 @@ def register():
         email = form.email.data
         password = form.password.data
         success = add_user(email, password)
-        print("register done")
+
         if success:
             flash('Thanks for registering')
             return redirect(url_for('login'))
         else:
             flash('User already exist')
 
-    return render_template('register.html', title="Register", form = form)
+    return render_template('register.html', title="Register", form=form)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -85,12 +86,19 @@ def logout():
     return redirect(url_for("login"))
 
 
-@app.route('/notes', methods=['GET'])
+@app.route('/notes', methods=['GET', 'POST'])
 def notes():
     if 'user_id' in session:
         user_id = session['user_id']
-        user_notes = read_latest_100_notes(user_id)
-        return render_template('notes.html', notes=user_notes, title="Notes")
+        form = OlderNotesForm()
+        user_notes = []
+        if form.validate_on_submit():
+            date = form.date.data
+            time = form.time.data
+            user_notes = read_100_notes(user_id, date, time)
+        else:
+            user_notes = read_latest_100_notes(user_id)
+        return render_template('notes.html', notes=user_notes, title="Notes", form=form)
 
     return redirect(url_for("login"))
 

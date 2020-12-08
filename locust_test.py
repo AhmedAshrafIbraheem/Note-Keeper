@@ -29,18 +29,18 @@
 import time
 from locust import HttpUser, task
 
-note_data = dict(note="register form implement")
+note_data = dict(note="Testing Locust Hah")
 login_data = dict(email='locust12345@gmail.com', password='12345678')
-register_data = dict(email = "", password='12345678')
+register_data = dict(email="locust12345@gmail.com", password='12345678', confirm="12345678")
 
-user_counter = 50
+user_counter = 1
 
 
 class QuickTasks(HttpUser):
-    # @task
-    # def add_note(self):
-    #     self.client.post("/notes/add", data=note_data)
-    #     time.sleep(1)
+    @task
+    def add_note(self):
+        self.client.post("/notes/add", data=note_data)
+        time.sleep(1)
 
     @task
     def get_notes(self):

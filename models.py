@@ -1,5 +1,6 @@
 import os
 import sys
+import datetime as dt
 import pymysql
 from passlib.hash import sha256_crypt
 
@@ -25,6 +26,8 @@ else:
     rdhost = '127.0.0.1:1234'
     cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
     rd_cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=1234, db='note_database')
+    # cnx = pymysql.connect(user='note_keeper', password='', host='localhost', db='NoteKeeperDB')
+    # rd_cnx = cnx
 
 
 class User:
@@ -34,10 +37,11 @@ class User:
 
 
 class Note:
-    def __init__(self, note_id: int, user_id: int, note: str):
+    def __init__(self, note_id: int, user_id: int, note: str, time_created: dt.datetime):
         self.id = note_id
         self.user = user_id
         self.note = note
+        self.time_created = time_created
 
 
 def add_user(email: str, password: str) -> bool:
@@ -87,8 +91,10 @@ def get_user(user_id: int) -> User:
 
 def create_note(user_id: int, note: str):
     try:
+        dt_string = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cur = cnx.cursor()
-        cur.execute("INSERT INTO Notes (user_id, note) VALUES ({}, '{}');".format(user_id, note))
+        cur.execute("INSERT INTO Notes (user_id, note, time_created) "
+                    "VALUES ({}, '{}', '{}');".format(user_id, note, dt_string))
         cnx.commit()
         cur.close()
     except:
@@ -103,7 +109,7 @@ def get_note(user_id: int, note_id: int):
         ret = cur.fetchone()
         cur.close()
         if ret:
-            return Note(ret[0], ret[1], ret[2])
+            return Note(ret[0], ret[1], ret[2], ret[3])
     except:
         pass
     return None
@@ -133,12 +139,30 @@ def remove_note(user_id: int, note_id: int):
 def read_latest_100_notes(user_id: int) -> [Note]:
     try:
         cur = rd_cnx.cursor()
-        cur.execute("SELECT * FROM Notes WHERE user_id= {} LIMIT 100;".format(user_id))
+        cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
         ret = cur.fetchall()
         rd_cnx.commit()
         cur.close()
 
-        return [Note(note[0], note[1], note[2]) for note in ret]
+        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
     except Exception as e:
         print("Read error" + str(e))
     return []
+
+
+def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
+    timestamp = dt.datetime.combine(date, time)
+    try:
+        cur = rd_cnx.cursor()
+        cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
+                    "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
+        ret = cur.fetchall()
+        rd_cnx.commit()
+        cur.close()
+
+        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
+    except Exception as e:
+        print("Read error" + str(e))
+    return []
+
+
