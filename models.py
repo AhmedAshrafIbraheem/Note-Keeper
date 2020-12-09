@@ -20,11 +20,12 @@ if os.environ.get('GAE_ENV') == 'standard':
     read_2_unix_socket = '/cloudsql/{}'.format(read_db_2)
     read_cross_unix_socket = '/cloudsql/{}'.format(read_db_cross)
 
-    chosen_read = choice([read_unix_socket, read_2_unix_socket])
+    def primary_connect():
+        return pymysql.connect(user=db_user, password=db_password, unix_socket=unix_socket, db=db_name)
 
-    cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=unix_socket, db=db_name)
-    rd_cnx = pymysql.connect(user=db_user, password=db_password, unix_socket=chosen_read, db=db_name)
-
+    def replica_read_connect():
+        chosen_read = choice([read_unix_socket, read_2_unix_socket])
+        return pymysql.connect(user=db_user, password=db_password, unix_socket=chosen_read, db=db_name)
 
     def cross_read_connect():
         return pymysql.connect(user=db_user, password=db_password, unix_socket=read_cross_unix_socket, db=db_name)
@@ -36,10 +37,12 @@ else:
     # Cloud SQL instance
     dbhost = '127.0.0.1'
 
-    chosen_read = choice([1234, 1235])
-    print(chosen_read)
-    cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
-    rd_cnx = pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=chosen_read, db='note_database')
+    def primary_connect():
+        return pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
+
+    def replica_read_connect():
+        chosen_read = choice([1234, 1235])
+        return pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=chosen_read, db='note_database')
 
     def cross_read_connect():
         return pymysql.connect(user='master_user', password='noteappmaster', port=1236, db='note_database')
@@ -62,10 +65,12 @@ class Note:
 def add_user(email: str, password: str) -> bool:
     hashed_password = sha256_crypt.encrypt(password)
     try:
+        cnx = primary_connect()
         cur = cnx.cursor()
         cur.execute("INSERT INTO Users (email, password) VALUES ('{}', '{}');".format(email, hashed_password))
         cnx.commit()
         cur.close()
+        cnx.close()
         return True
     except:
         pass
@@ -75,11 +80,13 @@ def add_user(email: str, password: str) -> bool:
 def create_note(user_id: int, note: str):
     try:
         dt_string = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        cnx = primary_connect()
         cur = cnx.cursor()
         cur.execute("INSERT INTO Notes (user_id, note, time_created) "
                     "VALUES ({}, '{}', '{}');".format(user_id, note, dt_string))
         cnx.commit()
         cur.close()
+        cnx.close()
         return True
     except:
         return False
@@ -87,11 +94,13 @@ def create_note(user_id: int, note: str):
 
 def update_note(user_id: int, note_id: int, edited_note: str):
     try:
+        cnx = primary_connect()
         cur = cnx.cursor()
         cur.execute(
             "UPDATE Notes SET note='{}' WHERE id={} AND user_id= {} LIMIT 1;".format(edited_note, note_id, user_id))
         cnx.commit()
         cur.close()
+        cnx.close()
         return True
     except:
         return False
@@ -99,10 +108,12 @@ def update_note(user_id: int, note_id: int, edited_note: str):
 
 def remove_note(user_id: int, note_id: int):
     try:
+        cnx = primary_connect()
         cur = cnx.cursor()
         cur.execute("DELETE FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
         cnx.commit()
         cur.close()
+        cnx.close()
         return True
     except:
         return False
@@ -122,7 +133,9 @@ def _user_exist(email: str, connection):
 
 def user_exist(email: str, password: str):
     # Return user if exits and None otherwise
+    rd_cnx = replica_read_connect()
     ret = _user_exist(email, rd_cnx)
+    rd_cnx.close()
     if ret == -1:
         rd_cross_cnx = cross_read_connect()
         ret = _user_exist(email, rd_cross_cnx)
@@ -149,7 +162,9 @@ def _get_user(user_id: int, connection):
 
 
 def get_user(user_id: int) -> User:
+    rd_cnx = replica_read_connect()
     ret = _get_user(user_id, rd_cnx)
+    rd_cnx.close()
     if ret == -1:
         rd_cross_cnx = cross_read_connect()
         ret = _get_user(user_id, rd_cross_cnx)
@@ -173,7 +188,9 @@ def _get_note(user_id: int, note_id: int, connection):
 
 
 def get_note(user_id: int, note_id: int):
+    rd_cnx = replica_read_connect()
     ret = _get_note(user_id, note_id, rd_cnx)
+    rd_cnx.close()
     if ret == -1:
         rd_cross_cnx = cross_read_connect()
         ret = _get_note(user_id, note_id, rd_cross_cnx)
@@ -197,7 +214,9 @@ def _read_latest_100_notes(user_id: int, connection):
 
 
 def read_latest_100_notes(user_id: int) -> [Note]:
+    rd_cnx = replica_read_connect()
     ret = _read_latest_100_notes(user_id, rd_cnx)
+    rd_cnx.close()
     if ret == -1:
         rd_cross_cnx = cross_read_connect()
         ret = _read_latest_100_notes(user_id, rd_cross_cnx)
@@ -223,7 +242,9 @@ def _read_100_notes(user_id: int, timestamp, connection):
 
 def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
     timestamp = dt.datetime.combine(date, time)
+    rd_cnx = replica_read_connect()
     ret = _read_100_notes(user_id, timestamp, rd_cnx)
+    rd_cnx.close()
     if ret == -1:
         rd_cross_cnx = cross_read_connect()
         ret = _read_100_notes(user_id, timestamp, rd_cross_cnx)
