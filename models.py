@@ -39,14 +39,14 @@ else:
     dbhost = '127.0.0.1'
 
     def primary_connect():
-        return pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, db='note_database')
+        return pymysql.connect(user=db_user, password=db_password, host=dbhost, db=db_name)
 
     def replica_read_connect():
         chosen_read = choice([1234, 1235])
-        return pymysql.connect(user='master_user', password='noteappmaster', host=dbhost, port=chosen_read, db='note_database')
+        return pymysql.connect(user=db_user, password=db_password, host=dbhost, port=chosen_read, db=db_name)
 
     def cross_read_connect():
-        return pymysql.connect(user='master_user', password='noteappmaster', port=1236, db='note_database')
+        return pymysql.connect(user=db_user, password=db_password, port=1236, db=db_name)
 
 
 class User:
