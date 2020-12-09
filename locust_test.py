@@ -42,10 +42,10 @@ class QuickTasks(HttpUser):
         self.client.post("/notes/add", data=note_data)
         time.sleep(1)
 
-    @task
-    def get_notes(self):
-        self.client.get("/notes")
-        time.sleep(1)
+    # @task
+    # def get_notes(self):
+    #     self.client.get("/notes")
+    #     time.sleep(1)
 
     def on_start(self):
         global user_counter

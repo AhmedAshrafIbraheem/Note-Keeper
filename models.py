@@ -75,13 +75,12 @@ def add_user(email: str, password: str) -> bool:
         cnx.commit()
         cur.close()
         return True
-    except pymysql.OperationalError as e:
-        # if e[0] == 2002:
-        #     print("Could not connect to database")
-        #   return False
-        pass
     except pymysql.IntegrityError as Ie:
         print("Duplicate entry " + str(sys.exc_info()[1]))
+        cur.close()
+        pass
+    except:
+        cur.close()
         pass
     return False
 
@@ -94,8 +93,12 @@ def create_note(user_id: int, note: str):
                     "VALUES ({}, '{}', '{}');".format(user_id, note, dt_string))
         cnx.commit()
         cur.close()
+        return True
     except:
+        cur.close()
         pass
+
+    return False
 
 
 def update_note(user_id: int, note_id: int, edited_note: str):
@@ -105,9 +108,11 @@ def update_note(user_id: int, note_id: int, edited_note: str):
             "UPDATE Notes SET note='{}' WHERE id={} AND user_id= {} LIMIT 1;".format(edited_note, note_id, user_id))
         cnx.commit()
         cur.close()
+        return True
     except:
+        cur.close()
         pass
-
+    return False
 
 def remove_note(user_id: int, note_id: int):
     try:
@@ -115,8 +120,11 @@ def remove_note(user_id: int, note_id: int):
         cur.execute("DELETE FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
         cnx.commit()
         cur.close()
+        return True
     except:
+        cur.close()
         pass
+    return False
 
 
 def _user_exist(email: str, connection):
@@ -135,39 +143,61 @@ def user_exist(email: str, password: str):
         ret = _user_exist(email, rd_cnx)
         if sha256_crypt.verify(password, ret[2]):
             return User(ret[0], ret[1])
+    except pymysql.OperationalError:
+        try:
+            rd_cross_cnx = cross_read_connect()
+            ret = _user_exist(email, rd_cross_cnx)
+            rd_cross_cnx.close()
+            if sha256_crypt.verify(password, ret[2]):
+                return User(ret[0], ret[1])
+        except:
+            read_db_cross.close()
+            pass
     except:
-        rd_cross_cnx = cross_read_connect()
-        ret = _user_exist(email, rd_cross_cnx)
-        rd_cross_cnx.close()
-        if sha256_crypt.verify(password, ret[2]):
-            return User(ret[0], ret[1])
+        pass
+
 
 
 def _get_user(user_id: int, connection):
-    cur = connection.cursor()
-    cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
-    connection.commit()
-    ret = cur.fetchone()
-    cur.close()
+    try:
+        cur = connection.cursor()
+        cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
+        ret = cur.fetchone()
+        connection.commit()
+        cur.close()
+    except:
+        cur.close()
     return ret
 
 def get_user(user_id: int) -> User:
+    ret = None
     try:
         ret = _get_user(user_id, rd_cnx)
-        return User(user_id, ret[0])
+
     except pymysql.OperationalError:
-        rd_cross_cnx = cross_read_connect()
-        ret = _get_user(user_id, rd_cross_cnx)
-        rd_cross_cnx.close()
+        try:
+            rd_cross_cnx = cross_read_connect()
+            ret = _get_user(user_id, rd_cross_cnx)
+            rd_cross_cnx.close()
+
+        except:
+            rd_cross_cnx.close()
+            pass
+    except:
+        pass
+    if ret:
         return User(user_id, ret[0])
 
 
 def _get_note(user_id: int, note_id: int, connection):
-    cur = connection.cursor()
-    cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
-    connection.commit()
-    ret = cur.fetchone()
-    cur.close()
+    try:
+        cur = connection.cursor()
+        cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
+        ret = cur.fetchone()
+        connection.commit()
+        cur.close()
+    except:
+        cur.close()
     return ret
 
 def get_note(user_id: int, note_id: int):
@@ -176,19 +206,25 @@ def get_note(user_id: int, note_id: int):
         if ret:
             return Note(ret[0], ret[1], ret[2], ret[3])
     except pymysql.OperationalError:
-        rd_cross_cnx = cross_read_connect()
-        ret = _get_note(user_id, note_id, rd_cross_cnx)
-        rd_cross_cnx.close()
-        if ret:
-            return Note(ret[0], ret[1], ret[2], ret[3])
+        try:
+            rd_cross_cnx = cross_read_connect()
+            ret = _get_note(user_id, note_id, rd_cross_cnx)
+            rd_cross_cnx.close()
+            if ret:
+                return Note(ret[0], ret[1], ret[2], ret[3])
+        except:
+            rd_cross_cnx.close()
     return None
 
 def _read_latest_100_notes(user_id: int, connection):
-    cur = connection.cursor()
-    cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
-    connection.commit()
-    ret = cur.fetchall()
-    cur.close()
+    try:
+        cur = connection.cursor()
+        cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
+        ret = cur.fetchall()
+        connection.commit()
+        cur.close()
+    except:
+        cur.close()
     return ret
 
 def read_latest_100_notes(user_id: int) -> [Note]:
@@ -196,20 +232,29 @@ def read_latest_100_notes(user_id: int) -> [Note]:
         ret = _read_latest_100_notes(user_id, rd_cnx)
         return [Note(note[0], note[1], note[2], note[3]) for note in ret]
     except pymysql.OperationalError:
-        rd_cross_cnx = cross_read_connect()
-        ret = _read_latest_100_notes(user_id, rd_cross_cnx)
-        rd_cross_cnx.close()
-        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
+        try:
+            rd_cross_cnx = cross_read_connect()
+            ret = _read_latest_100_notes(user_id, rd_cross_cnx)
+            rd_cross_cnx.close()
+            return [Note(note[0], note[1], note[2], note[3]) for note in ret]
+        except:
+            rd_cross_cnx.close()
+            pass
+    except:
+        pass
     return []
 
 
 def _read_100_notes(user_id: int, timestamp, connection):
-    cur = connection.cursor()
-    cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
-                "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
-    connection.commit()
-    ret = cur.fetchall()
-    cur.close()
+    try:
+        cur = connection.cursor()
+        cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
+                    "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
+        connection.commit()
+        ret = cur.fetchall()
+        cur.close()
+    except:
+        cur.close()
     return ret
 
 def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
@@ -218,10 +263,16 @@ def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
         ret = _read_100_notes(user_id, timestamp, rd_cnx)
         return [Note(note[0], note[1], note[2], note[3]) for note in ret]
     except pymysql.OperationalError:
-        rd_cross_cnx = cross_read_connect()
-        ret = _read_100_notes(user_id, timestamp, rd_cross_cnx)
-        rd_cross_cnx.close()
-        return [Note(note[0], note[1], note[2], note[3]) for note in ret]
+        try:
+            rd_cross_cnx = cross_read_connect()
+            ret = _read_100_notes(user_id, timestamp, rd_cross_cnx)
+            rd_cross_cnx.close()
+            return [Note(note[0], note[1], note[2], note[3]) for note in ret]
+        except:
+            rd_cross_cnx.close()
+            pass
+    except:
+        pass
     return []
 
 

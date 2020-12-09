@@ -57,7 +57,7 @@ def register():
             flash('Thanks for registering')
             return redirect(url_for('login'))
         else:
-            flash('User already exist')
+            flash('User already exist', 'error')
 
     return render_template('register.html', title="Register", form=form)
 
@@ -74,7 +74,7 @@ def login():
             session['user_id'] = user.id
             return redirect(url_for("notes"))
         else:
-            flash("Invalid email or password.")
+            flash("Invalid email or password.", 'error')
 
     return render_template("login.html", title="Login", form=form)
 
@@ -110,8 +110,10 @@ def add_note():
         if form.validate_on_submit():
             user_id = session['user_id']
             note = form.note.data
-            create_note(user_id, note)
-            flash("You have successfully added a new note.")
+            if create_note(user_id, note):
+                flash("You have successfully added a new note.")
+            else:
+                flash("Unable to add a new note.", 'error')
             return redirect(url_for("notes"))
 
         return render_template("updateNote.html", add_note=True, title="Add Note", form=form)
@@ -127,8 +129,10 @@ def edit_note(note_id: int):
         form = NoteForm(obj=cur_note)
         if form.validate_on_submit():
             updated_note = form.note.data
-            update_note(user_id, note_id, updated_note)
-            flash("You have successfully updated your note.")
+            if update_note(user_id, note_id, updated_note):
+                flash("You have successfully updated your note.")
+            else:
+                flash("Unable to update note", 'error')
             return redirect(url_for("notes"))
 
         return render_template("updateNote.html", add_note=False, title="Edit Note", form=form)
@@ -140,8 +144,11 @@ def edit_note(note_id: int):
 def delete_note(note_id: int):
     if 'user_id' in session:
         user_id = session['user_id']
-        remove_note(user_id, note_id)
-        flash("You have successfully deleted the note.")
+        if remove_note(user_id, note_id):
+            flash("You have successfully deleted the note.")
+        else:
+            flash("Unable to add note")
+
         return redirect(url_for("notes"))
 
     return redirect(url_for("login"))
@@ -149,5 +156,5 @@ def delete_note(note_id: int):
 
 if __name__ == '__main__':
     #app.run(host='127.0.0.1', port=8080, debug=True)
-    http_server = WSGIServer(('', 443), app)
+    http_server = WSGIServer(('', 8080), app)
     http_server.serve_forever()
