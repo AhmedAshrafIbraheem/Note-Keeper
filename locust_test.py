@@ -33,7 +33,7 @@ note_data = dict(note="Testing Locust Hah")
 login_data = dict(email='locust12345@gmail.com', password='12345678')
 register_data = dict(email="locust12345@gmail.com", password='12345678', confirm="12345678")
 
-user_counter = 1
+user_counter = 50
 
 
 class QuickTasks(HttpUser):
@@ -41,11 +41,6 @@ class QuickTasks(HttpUser):
     def add_note(self):
         self.client.post("/notes/add", data=note_data)
         time.sleep(1)
-
-    # @task
-    # def get_notes(self):
-    #     self.client.get("/notes")
-    #     time.sleep(1)
 
     def on_start(self):
         global user_counter
@@ -55,7 +50,6 @@ class QuickTasks(HttpUser):
             r = self.client.post("/login", data=login_data)
             if r.status_code != 401:
                 break
-
 
     def on_stop(self):
         self.client.get("/logout")

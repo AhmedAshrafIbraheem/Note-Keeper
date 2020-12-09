@@ -13,6 +13,7 @@ SECRET_KEY = b'\xe2\xaf\xbc:\xdd'
 app.config['SECRET_KEY'] = SECRET_KEY
 app.config['WTF_CSRF_ENABLED'] = False
 
+
 @app.errorhandler(403)
 def forbidden(error):
     return render_template("errors/403.html", title="Forbidden"), 403
@@ -75,7 +76,6 @@ def login():
             return redirect(url_for("notes"))
         else:
             flash("Invalid email or password.", 'error')
-            return redirect(url_for('login'), 401)
 
     return render_template("login.html", title="Login", form=form)
 
@@ -101,7 +101,7 @@ def notes():
             user_notes = read_latest_100_notes(user_id)
         return render_template('notes.html', notes=user_notes, title="Notes", form=form)
 
-    return redirect(url_for("login"), 401)
+    return redirect(url_for("login"))
 
 
 @app.route('/notes/add', methods=['GET', 'POST'])
@@ -115,12 +115,11 @@ def add_note():
                 flash("You have successfully added a new note.")
             else:
                 flash("Unable to add a new note.", 'error')
-                return redirect(url_for("notes"), 400)
             return redirect(url_for("notes"))
 
         return render_template("updateNote.html", add_note=True, title="Add Note", form=form)
 
-    return redirect(url_for("login"), 401)
+    return redirect(url_for("login"))
 
 
 @app.route('/notes/edit/<int:note_id>', methods=['GET', 'POST'])
@@ -135,12 +134,11 @@ def edit_note(note_id: int):
                 flash("You have successfully updated your note.")
             else:
                 flash("Unable to update note", 'error')
-                return redirect(url_for("notes"), 400)
             return redirect(url_for("notes"))
 
         return render_template("updateNote.html", add_note=False, title="Edit Note", form=form)
 
-    return redirect(url_for("login"), 401)
+    return redirect(url_for("login"))
 
 
 @app.route('/notes/delete/<int:note_id>', methods=['GET'])
@@ -151,14 +149,12 @@ def delete_note(note_id: int):
             flash("You have successfully deleted the note.")
         else:
             flash("Unable to add note")
-            return redirect(url_for("notes"), 400)
-
         return redirect(url_for("notes"))
 
-    return redirect(url_for("login"), 401)
+    return redirect(url_for("login"))
 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1', port=8080, debug=True)
+    # app.run(host='127.0.0.1', port=8080, debug=True)
     http_server = WSGIServer(('', 8080), app)
     http_server.serve_forever()
