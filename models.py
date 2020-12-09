@@ -1,5 +1,6 @@
 import os
 import datetime as dt
+from pytz import timezone
 import pymysql
 from random import choice
 from passlib.hash import sha256_crypt
@@ -79,7 +80,8 @@ def add_user(email: str, password: str) -> bool:
 
 def create_note(user_id: int, note: str):
     try:
-        dt_string = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        eastern = timezone('US/Eastern')
+        dt_string = dt.datetime.now(eastern).strftime("%Y-%m-%d %H:%M:%S")
         cnx = primary_connect()
         cur = cnx.cursor()
         cur.execute("INSERT INTO Notes (user_id, note, time_created) "
