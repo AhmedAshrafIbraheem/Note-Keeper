@@ -119,13 +119,15 @@ def remove_note(user_id: int, note_id: int):
         return False
 
 
-def _user_exist(email: str, connection):
+def _user_exist(email: str, connect_func):
     try:
+        connection = connect_func()
         cur = connection.cursor()
         cur.execute("SELECT * FROM Users WHERE email='{}' LIMIT 1;".format(email))
         connection.commit()
         ret = cur.fetchone()
         cur.close()
+        connection.close()
         return ret
     except:
         return -1
@@ -133,13 +135,9 @@ def _user_exist(email: str, connection):
 
 def user_exist(email: str, password: str):
     # Return user if exits and None otherwise
-    rd_cnx = replica_read_connect()
-    ret = _user_exist(email, rd_cnx)
-    rd_cnx.close()
+    ret = _user_exist(email, replica_read_connect)
     if ret == -1:
-        rd_cross_cnx = cross_read_connect()
-        ret = _user_exist(email, rd_cross_cnx)
-        rd_cross_cnx.close()
+        ret = _user_exist(email, cross_read_connect)
     if not ret or ret == -1:
         return None
 
@@ -149,92 +147,88 @@ def user_exist(email: str, password: str):
     return None
 
 
-def _get_user(user_id: int, connection):
+def _get_user(user_id: int, connect_func):
     try:
+        connection = connect_func()
         cur = connection.cursor()
         cur.execute("SELECT email FROM Users WHERE id={} LIMIT 1;".format(user_id))
         ret = cur.fetchone()
         connection.commit()
         cur.close()
+        connection.close()
         return ret
     except:
         return -1
 
 
 def get_user(user_id: int) -> User:
-    rd_cnx = replica_read_connect()
-    ret = _get_user(user_id, rd_cnx)
-    rd_cnx.close()
+    ret = _get_user(user_id, replica_read_connect)
     if ret == -1:
-        rd_cross_cnx = cross_read_connect()
-        ret = _get_user(user_id, rd_cross_cnx)
-        rd_cross_cnx.close()
+        ret = _get_user(user_id, cross_read_connect)
     if not ret or ret == -1:
         return None
 
     return User(user_id, ret[0])
 
 
-def _get_note(user_id: int, note_id: int, connection):
+def _get_note(user_id: int, note_id: int, connect_func):
     try:
+        connection = connect_func()
         cur = connection.cursor()
         cur.execute("SELECT * FROM Notes WHERE id={} AND user_id= {} LIMIT 1;".format(note_id, user_id))
         ret = cur.fetchone()
         connection.commit()
         cur.close()
+        connection.close()
         return ret
     except:
         return -1
 
 
 def get_note(user_id: int, note_id: int):
-    rd_cnx = replica_read_connect()
-    ret = _get_note(user_id, note_id, rd_cnx)
-    rd_cnx.close()
+    ret = _get_note(user_id, note_id, replica_read_connect)
     if ret == -1:
-        rd_cross_cnx = cross_read_connect()
-        ret = _get_note(user_id, note_id, rd_cross_cnx)
-        rd_cross_cnx.close()
+        ret = _get_note(user_id, note_id, cross_read_connect)
     if not ret or ret == -1:
         return None
 
     return Note(ret[0], ret[1], ret[2], ret[3])
 
 
-def _read_latest_100_notes(user_id: int, connection):
+def _read_latest_100_notes(user_id: int, connect_func):
     try:
+        connection = connect_func()
         cur = connection.cursor()
         cur.execute("SELECT * FROM Notes WHERE user_id= {} ORDER BY id DESC LIMIT 100;".format(user_id))
         connection.commit()
         ret = cur.fetchall()
         cur.close()
+        connection.close()
         return ret
     except:
         return -1
 
 
 def read_latest_100_notes(user_id: int) -> [Note]:
-    rd_cnx = replica_read_connect()
-    ret = _read_latest_100_notes(user_id, rd_cnx)
-    rd_cnx.close()
+    ret = _read_latest_100_notes(user_id, replica_read_connect)
     if ret == -1:
-        rd_cross_cnx = cross_read_connect()
-        ret = _read_latest_100_notes(user_id, rd_cross_cnx)
-        rd_cross_cnx.close()
+        ret = _read_latest_100_notes(user_id, cross_read_connect)
     if not ret or ret == -1:
         return []
 
     return [Note(note[0], note[1], note[2], note[3]) for note in ret]
 
 
-def _read_100_notes(user_id: int, timestamp, connection):
+def _read_100_notes(user_id: int, timestamp, connect_func):
     try:
+        connection = connect_func()
         cur = connection.cursor()
         cur.execute("SELECT * FROM Notes WHERE user_id= {} AND time_created <= '{}' "
                     "ORDER BY id DESC LIMIT 100;".format(user_id, timestamp))
         connection.commit()
         ret = cur.fetchall()
         cur.close()
+        connection.close()
         return ret
     except:
         return -1
@@ -242,13 +236,10 @@ def _read_100_notes(user_id: int, timestamp, connection):
 
 def read_100_notes(user_id: int, date: dt.date, time: dt.time) -> [Note]:
     timestamp = dt.datetime.combine(date, time)
-    rd_cnx = replica_read_connect()
-    ret = _read_100_notes(user_id, timestamp, rd_cnx)
-    rd_cnx.close()
+    ret = _read_100_notes(user_id, timestamp, replica_read_connect)
     if ret == -1:
-        rd_cross_cnx = cross_read_connect()
-        ret = _read_100_notes(user_id, timestamp, rd_cross_cnx)
-        rd_cross_cnx.close()
+        ret = _read_100_notes(user_id, timestamp, cross_read_connect)
+
     if not ret or ret == -1:
         return []
 

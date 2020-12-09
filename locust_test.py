@@ -33,7 +33,7 @@ note_data = dict(note="Testing Locust Hah")
 login_data = dict(email='locust12345@gmail.com', password='12345678')
 register_data = dict(email="locust12345@gmail.com", password='12345678', confirm="12345678")
 
-user_counter = 1
+user_counter = 50
 
 
 class QuickTasks(HttpUser):
